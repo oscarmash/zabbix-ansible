@@ -1,0 +1,37 @@
+- hosts:
+  - zabbix_agent2
+
+  tasks:
+
+    - name: Download Zabbix Debian release deb file
+      get_url:
+        url="https://repo.zabbix.com/zabbix/6.0/debian/pool/main/z/zabbix-release/zabbix-release_6.0-4%2Bdebian11_all.deb"
+        dest="/tmp/zabbix-release.deb"
+
+    - name: Apt install Zabbix release in Ubuntu/Debian
+      apt: deb="/tmp/zabbix-release.deb"
+
+    - name: Apt-get update
+      apt: update_cache=yes
+
+    - name: install Zabbix agent2
+      package: 
+        name: zabbix-agent2
+        state: present
+
+    - name: Modify zabbix_agent2.conf
+      lineinfile: dest=/etc/zabbix/zabbix_agent2.conf regexp="{{ item.var }}=" line="{{ item.var }}={{ item.value }}"
+      with_items:
+        - { var: "ServerActive", value: "172.26.0.13"}
+        - { var: "Server", value: "172.26.0.13"}
+        - { var: "Hostname", value: "{{ansible_hostname}}"}
+
+    - name: Adding user zabbix to group docker
+      user:
+        name: zabbix
+        groups: docker
+        append: yes        
+
+    - name: Restart zabbix-agent2
+      service: name=zabbix-agent2 state=restarted
+      ignore_errors: yes

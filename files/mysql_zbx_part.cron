@@ -1,0 +1,1 @@
+0 23 * * * /usr/local/sbin/mysql_zbx_part.pl >/dev/null 2>&1

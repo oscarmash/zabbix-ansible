@@ -1,0 +1,10 @@
+network_docker_subnet: "172.23.27.0/24"
+network_docker_iprange: "172.23.27.0/24"
+mysql_root_password: "super_password_root"
+mysql_zabbix_db: "zabbix"
+mysql_zabbix_user: "zabbix"
+mysql_zabbix_user_password: "super_password_root_zabbix"
+zabbix_proxy_server_version: ubuntu-6.0.12 # que cuadre con la versión del servidor
+zabbix_proxy_active_passive: "0"  # 0 - active proxy and 1 - passive proxy
+zabbix_proxy_server_name: "zabbix_proxy01" # ha de cuadrar cuando configuremos el proxy en el zabbix GUI
+zabbix_server_host: "172.26.0.254" # IP/DNS Zabbix Server

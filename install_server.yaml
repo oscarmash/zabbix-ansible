@@ -1,0 +1,210 @@
+- hosts:
+  - zabbix
+
+  tasks:
+
+    - name: "Update apt and install basic packages"
+      apt:
+        name:
+          - python3-requests
+          - default-mysql-client
+        state: latest
+        update_cache: true
+      tags: install_basic_packages
+
+    - name: "Add Docker GPG apt Key"
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+      tags: docker_install
+
+    - name: "Add Docker Repository"
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
+      tags: docker_install
+
+    - name: "Update apt and install docker-ce"
+      apt:
+        name: docker-ce
+        state: latest
+        update_cache: true
+      tags: docker_install
+
+    - name: "Create a network in docker"
+      community.docker.docker_network:
+        name: zabbix_net
+        ipam_config:
+          - subnet: "{{ network_docker_subnet }}"
+            iprange: "{{ network_docker_iprange }}"
+
+    - name: "Creates directory /var/lib/mysql"
+      file:
+        path: /var/lib/mysql
+        state: directory
+      tags: docker_mysql
+
+    - name: "Create docker MySQL"
+      community.docker.docker_container:
+        name: zabbix_mysql
+        hostname: zabbix_mysql
+        image: mysql:8.0.31
+        restart_policy: unless-stopped
+        published_ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
+          MYSQL_DATABASE: "{{ mysql_zabbix_db }}"
+          MYSQL_USER: "{{ mysql_zabbix_user }}"
+          MYSQL_PASSWORD: "{{ mysql_zabbix_user_password }}"
+        volumes:
+          - /etc/localtime:/etc/localtime:ro
+          - /var/lib/mysql:/var/lib/mysql
+        networks:
+          - name: zabbix_net
+        command: ['mysqld', '--character-set-server=utf8', '--collation-server=utf8_bin', '--default-authentication-plugin=mysql_native_password']
+      tags: docker_mysql
+
+    - name: "Create docker Zabbix Server"
+      community.docker.docker_container:
+        name: zabbix_server
+        hostname: zabbix_server
+        image: zabbix/zabbix-server-mysql:{{ zabbix_server_version }}
+        restart_policy: unless-stopped
+        published_ports:
+          - 10051:10051
+        env:
+          DB_SERVER_HOST: zabbix_mysql
+          MYSQL_DATABASE: "{{ mysql_zabbix_db }}"
+          MYSQL_USER: "{{ mysql_zabbix_user }}"
+          MYSQL_PASSWORD: "{{ mysql_zabbix_user_password }}"
+          MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
+        volumes:
+          - /etc/localtime:/etc/localtime:ro
+        networks:
+          - name: zabbix_net
+      tags: docker_zabbix_server
+
+    - name: "Create docker nginx"
+      community.docker.docker_container:
+        name: zabbix_nginx
+        hostname: zabbix_nginx
+        image: zabbix/zabbix-web-nginx-mysql:{{ zabbix_server_version }}
+        restart_policy: unless-stopped
+        published_ports:
+          - 80:8080
+        env:
+          DB_SERVER_HOST: zabbix_mysql
+          MYSQL_DATABASE: "{{ mysql_zabbix_db }}"
+          MYSQL_USER: "{{ mysql_zabbix_user }}"
+          MYSQL_PASSWORD: "{{ mysql_zabbix_user_password }}"
+          MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
+          ZBX_SERVER_NAME: "{{ zabbix_server_name }}"
+          ZBX_SERVER_HOST: zabbix_server
+          PHP_TZ: "Europe/Madrid"
+        volumes:
+          - /etc/localtime:/etc/localtime:ro
+        networks:
+          - name: zabbix_net
+      tags: docker_zabbix_nginx
+
+    - name: "Create docker zabbix agent"
+      community.docker.docker_container:
+        name: zabbix_agent
+        hostname: zabbix_agent
+        image: zabbix/zabbix-agent:{{ zabbix_agent_version }}
+        restart_policy: unless-stopped
+        privileged: true
+        env:
+          ZBX_SERVER_HOST: zabbix_server
+        volumes:
+          - /etc/localtime:/etc/localtime:ro
+        networks:
+          - name: zabbix_net
+      tags: docker_zabbix_agent
+
+    - name: Copying file mysql_zbx_part.pl
+      copy:
+        src: files/mysql_zbx_part.pl
+        dest: /usr/local/sbin/mysql_zbx_part.pl
+        owner: root
+        group: root
+        mode: 0744
+      tags: partitioning_mysql
+
+    - name: "Install packages for mysql_zbx_part.pl"
+      apt:
+        name:
+          - libdatetime-perl
+          - liblogger-syslog-perl
+          - libdbd-mysql-perl
+          - python3-mysqldb
+        state: latest
+        update_cache: true
+      tags: partitioning_mysql
+
+    - name: Change variable db_schema in file mysql_zbx_part.pl
+      ansible.builtin.replace:
+        path: /usr/local/sbin/mysql_zbx_part.pl
+        regexp: my \$db_schema = \'zabbix\';
+        replace: my $db_schema = '{{ mysql_zabbix_db }}';
+      tags: partitioning_mysql
+
+    - name: Change variable dsn in file mysql_zbx_part.pl
+      ansible.builtin.replace:
+        path: /usr/local/sbin/mysql_zbx_part.pl
+        regexp: my \$dsn = \'DBI:mysql:\'.\$db_schema.\':mysql_socket=/var/lib/mysql/mysql.sock';
+        replace: my $dsn = 'DBI:mysql:'.$db_schema.';host={{ ansible_ssh_host }};port=3306';
+      tags: partitioning_mysql      
+
+    - name: Change variable db_user_name in file mysql_zbx_part.pl
+      ansible.builtin.replace:
+        path: /usr/local/sbin/mysql_zbx_part.pl
+        regexp: my \$db_user_name = \'zabbix\';
+        replace: my $db_user_name = '{{ mysql_zabbix_user }}';
+      tags: partitioning_mysql
+
+    - name: Change variable db_password in file mysql_zbx_part.pl
+      ansible.builtin.replace:
+        path: /usr/local/sbin/mysql_zbx_part.pl
+        regexp: my \$db_password = \'password\';
+        replace: my $db_password = '{{ mysql_zabbix_user_password }}';
+      tags: partitioning_mysql
+
+    - name: Copying file mysql_zbx_part.pl
+      copy:
+        src: files/mysql_zbx_part.cron
+        dest: /etc/cron.d/mysql_zbx_part
+        owner: root
+        group: root
+        mode: 0644
+      tags: partitioning_mysql
+
+    - name: Create variable day +1 with "-"
+      command: "date +'%Y-%m-%d' -d '+1 days'"
+      register: today_sum_one_horizontal_bar
+      tags: partitioning_mysql
+
+    - name: Create variable day with "_"
+      command: "date +'%Y_%m_%d'"
+      register: today_underscore
+      tags: partitioning_mysql
+
+    - name: Alter table
+      community.mysql.mysql_query:
+        login_user: "{{ mysql_zabbix_user }}"
+        login_password: "{{ mysql_zabbix_user_password }}"
+        login_db: "{{ mysql_zabbix_db }}"
+        login_host: "{{ ansible_ssh_host }}"
+        query: 
+        - ALTER TABLE `history` PARTITION BY RANGE ( clock) (PARTITION p{{today_underscore.stdout}} VALUES LESS THAN (UNIX_TIMESTAMP("{{today_sum_one_horizontal_bar.stdout}} 00:00:00")) ENGINE = InnoDB);
+        - ALTER TABLE `history_log` PARTITION BY RANGE ( clock) (PARTITION p{{today_underscore.stdout}} VALUES LESS THAN (UNIX_TIMESTAMP("{{today_sum_one_horizontal_bar.stdout}} 00:00:00")) ENGINE = InnoDB);
+        - ALTER TABLE `history_str` PARTITION BY RANGE ( clock) (PARTITION p{{today_underscore.stdout}} VALUES LESS THAN (UNIX_TIMESTAMP("{{today_sum_one_horizontal_bar.stdout}} 00:00:00")) ENGINE = InnoDB);
+        - ALTER TABLE `history_text` PARTITION BY RANGE ( clock) (PARTITION p{{today_underscore.stdout}} VALUES LESS THAN (UNIX_TIMESTAMP("{{today_sum_one_horizontal_bar.stdout}} 00:00:00")) ENGINE = InnoDB);
+        - ALTER TABLE `history_uint` PARTITION BY RANGE ( clock) (PARTITION p{{today_underscore.stdout}} VALUES LESS THAN (UNIX_TIMESTAMP("{{today_sum_one_horizontal_bar.stdout}} 00:00:00")) ENGINE = InnoDB);
+        - ALTER TABLE `trends` PARTITION BY RANGE ( clock) (PARTITION p{{today_underscore.stdout}} VALUES LESS THAN (UNIX_TIMESTAMP("{{today_sum_one_horizontal_bar.stdout}} 00:00:00")) ENGINE = InnoDB);
+        - ALTER TABLE `trends_uint` PARTITION BY RANGE ( clock) (PARTITION p{{today_underscore.stdout}} VALUES LESS THAN (UNIX_TIMESTAMP("{{today_sum_one_horizontal_bar.stdout}} 00:00:00")) ENGINE = InnoDB);
+      tags: partitioning_mysql
+
+    - name: Lanzamos mysql_zbx_part.pl
+      command: "/usr/local/sbin/mysql_zbx_part.pl"

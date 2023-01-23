@@ -1,0 +1,8 @@
+[zabbix]
+borrame ansible_host=172.26.0.254
+
+[zabbix_proxy]
+borrame3 ansible_host=172.26.0.252
+
+[zabbix_agent2]
+vault ansible_host=172.26.0.30
