@@ -37,7 +37,4 @@
 
   handlers:
 
-    - name: Restart zabbix agent 
-      ansible.builtin.service:
-        name: zabbix-agent2
-        state: restarted
+    - import_tasks: handlers/main.yml
