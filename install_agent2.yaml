@@ -3,15 +3,16 @@
 
   tasks:
 
-    - name: Install a .deb package from the internet
+    - name: Install Zabbix deb from internet
       ansible.builtin.apt:
         deb: https://repo.zabbix.com/zabbix/6.0/debian/pool/main/z/zabbix-release/zabbix-release_6.0-4%2Bdebian11_all.deb
-        update_cache: true
+      tags: zabbix_agent
 
     - name: install Zabbix agent2
-      ansible.builtin.package: 
+      ansible.builtin.apt: 
         name: zabbix-agent2
         state: present
+        update_cache: yes
       tags: zabbix_agent
 
     - name: Modify zabbix_agent2.conf
