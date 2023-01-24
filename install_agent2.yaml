@@ -3,22 +3,13 @@
 
   tasks:
 
-    - name: Download Zabbix Debian release deb file
-      ansible.builtin.get_url:
-        url="https://repo.zabbix.com/zabbix/6.0/debian/pool/main/z/zabbix-release/zabbix-release_6.0-4%2Bdebian11_all.deb"
-        dest="/tmp/zabbix-release.deb"
-      tags: zabbix_agent      
-
-    - name: Install Zabbix Debian release deb file
-      ansible.builtin.apt: deb="/tmp/zabbix-release.deb"
-      tags: zabbix_agent
-
-    - name: Apt-get update
-      ansible.builtin.apt: update_cache=yes
-      tags: zabbix_agent
+    - name: Install a .deb package from the internet
+      ansible.builtin.apt:
+        deb: https://repo.zabbix.com/zabbix/6.0/debian/pool/main/z/zabbix-release/zabbix-release_6.0-4%2Bdebian11_all.deb
+        update_cache: true
 
     - name: install Zabbix agent2
-      package: 
+      ansible.builtin.package: 
         name: zabbix-agent2
         state: present
       tags: zabbix_agent
@@ -29,6 +20,8 @@
         - { var: "ServerActive", value: "{{ zabbix_server }}"}
         - { var: "Server", value: "{{ zabbix_server }}"}
         - { var: "Hostname", value: "{{ansible_hostname}}"}
+      notify:
+      - Restart zabbix agent
       tags: zabbix_agent
 
     - name: Adding user zabbix to group docker
@@ -37,9 +30,13 @@
         groups: docker
         append: yes
       ignore_errors: true
-      tags: zabbix_agent 
-
-    - name: Restart zabbix-agent2
-      service: name=zabbix-agent2 state=restarted
-      ignore_errors: yes
+      notify:
+      - Restart zabbix agent
       tags: zabbix_agent
+
+  handlers:
+
+    - name: Restart zabbix agent 
+      ansible.builtin.service:
+        name: zabbix-agent2
+        state: restarted

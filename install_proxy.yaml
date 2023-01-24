@@ -4,7 +4,7 @@
   tasks:
 
     - name: "Fail when using non supported versions"
-      fail:
+      ansible.builtin.fail:
         msg: "Solo soportamos debian 11"
       when: ansible_distribution != "Debian" and ansible_distribution_version != "11"
 
