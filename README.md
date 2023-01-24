@@ -13,7 +13,7 @@ NOTA: aunque arranquen los contenedores, tarda un rato, ya que ha de crear el sc
 ## Cambios a realizar a mano
 
 Acceder por IP -> Admin/zabbix 
-Cambiar el "Zabbix server" de 127.0.0.1 a      y connect por DNS
+Cambiar el "Zabbix server" de 127.0.0.1 a "zabbix_agent" y connect por DNS
 
 # Instalación Zabbix agent
 

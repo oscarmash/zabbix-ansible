@@ -1,7 +1,12 @@
 - hosts:
-  - zabbix
+  - zabbix_server
 
   tasks:
+
+    - name: "Fail when using non supported versions"
+      fail:
+        msg: "Solo soportamos debian 11"
+      when: ansible_distribution != "Debian" and ansible_distribution_version != "11"
 
     - name: "Update apt and install basic packages"
       apt:
@@ -14,13 +19,13 @@
 
     - name: "Add Docker GPG apt Key"
       apt_key:
-        url: https://download.docker.com/linux/ubuntu/gpg
+        url: https://download.docker.com/linux/debian/gpg
         state: present
       tags: docker_install
 
     - name: "Add Docker Repository"
       apt_repository:
-        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        repo: "deb https://download.docker.com/linux/debian bullseye stable"
         state: present
       tags: docker_install
 
@@ -208,3 +213,4 @@
 
     - name: Lanzamos mysql_zbx_part.pl
       command: "/usr/local/sbin/mysql_zbx_part.pl"
+      tags: partitioning_mysql
