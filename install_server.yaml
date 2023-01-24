@@ -9,7 +9,7 @@
       when: ansible_distribution != "Debian" and ansible_distribution_version != "11"
 
     - name: "Update apt and install basic packages"
-      apt:
+      ansible.builtin.apt:
         name:
           - python3-requests
           - default-mysql-client
@@ -18,19 +18,19 @@
       tags: install_basic_packages
 
     - name: "Add Docker GPG apt Key"
-      apt_key:
+      ansible.builtin.apt_key:
         url: https://download.docker.com/linux/debian/gpg
         state: present
       tags: docker_install
 
     - name: "Add Docker Repository"
-      apt_repository:
+      ansible.builtin.apt_repository:
         repo: "deb https://download.docker.com/linux/debian bullseye stable"
         state: present
       tags: docker_install
 
     - name: "Update apt and install docker-ce"
-      apt:
+      ansible.builtin.apt:
         name: docker-ce
         state: latest
         update_cache: true
@@ -44,7 +44,7 @@
             iprange: "{{ network_docker_iprange }}"
 
     - name: "Creates directory /var/lib/mysql"
-      file:
+      ansible.builtin.file:
         path: /var/lib/mysql
         state: directory
       tags: docker_mysql
@@ -129,7 +129,7 @@
       tags: docker_zabbix_agent
 
     - name: Copying file mysql_zbx_part.pl
-      copy:
+      ansible.builtin.copy:
         src: files/mysql_zbx_part.pl
         dest: /usr/local/sbin/mysql_zbx_part.pl
         owner: root
@@ -138,7 +138,7 @@
       tags: partitioning_mysql
 
     - name: "Install packages for mysql_zbx_part.pl"
-      apt:
+      ansible.builtin.apt:
         name:
           - libdatetime-perl
           - liblogger-syslog-perl
@@ -177,7 +177,7 @@
       tags: partitioning_mysql
 
     - name: Copying file mysql_zbx_part.pl
-      copy:
+      ansible.builtin.copy:
         src: files/mysql_zbx_part.cron
         dest: /etc/cron.d/mysql_zbx_part
         owner: root
