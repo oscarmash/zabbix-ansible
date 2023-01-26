@@ -3,12 +3,12 @@
 
   tasks:
 
-    - name: "Fail when using non supported versions"
+    - name: Fail when using non supported versions
       ansible.builtin.fail:
         msg: "Solo soportamos debian 11"
       when: ansible_distribution != "Debian" and ansible_distribution_version != "11"
 
-    - name: "Update apt and install basic packages"
+    - name: Update apt and install basic packages
       ansible.builtin.apt:
         name:
           - python3-requests
@@ -17,39 +17,39 @@
         update_cache: true
       tags: install_basic_packages
 
-    - name: "Add Docker GPG apt Key"
+    - name: Add Docker GPG apt Key
       ansible.builtin.apt_key:
         url: https://download.docker.com/linux/debian/gpg
         state: present
       tags: docker_install
 
-    - name: "Add Docker Repository"
+    - name: Add Docker Repository
       ansible.builtin.apt_repository:
         repo: "deb https://download.docker.com/linux/debian bullseye stable"
         state: present
       tags: docker_install
 
-    - name: "Update apt and install docker-ce"
+    - name: Update apt and install docker-ce
       ansible.builtin.apt:
         name: docker-ce
         state: latest
         update_cache: true
       tags: docker_install
 
-    - name: "Create a network in docker"
+    - name: Create a network in docker
       community.docker.docker_network:
         name: zabbix_net
         ipam_config:
           - subnet: "{{ network_docker_subnet }}"
             iprange: "{{ network_docker_iprange }}"
 
-    - name: "Creates directory /var/lib/mysql"
+    - name: Creates directory /var/lib/mysql
       ansible.builtin.file:
         path: /var/lib/mysql
         state: directory
       tags: docker_mysql
 
-    - name: "Create docker MySQL"
+    - name: Create docker MySQL
       community.docker.docker_container:
         name: zabbix_proxy_mysql
         hostname: zabbix_proxy_mysql
@@ -70,7 +70,7 @@
         command: ['mysqld', '--character-set-server=utf8', '--collation-server=utf8_bin', '--default-authentication-plugin=mysql_native_password']
       tags: docker_mysql
 
-    - name: "Create docker Zabbix Proxy Server"
+    - name: Create docker Zabbix Proxy Server
       community.docker.docker_container:
         name: "{{ zabbix_proxy_server_name }}"
         hostname: "{{ zabbix_proxy_server_name }}"
@@ -85,7 +85,6 @@
           MYSQL_PASSWORD: "{{ mysql_zabbix_user_password }}"
           MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
           ZBX_PROXYMODE: "{{ zabbix_proxy_active_passive }}"
-          #ZBX_HOSTNAME: "{{ zabbix_server_name }}"
           ZBX_HOSTNAME: "{{ zabbix_proxy_server_name }}"
           ZBX_SERVER_HOST: "{{ zabbix_server_host }}"
           ZBX_SERVER_PORT: "10051"

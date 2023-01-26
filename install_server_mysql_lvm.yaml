@@ -1,5 +1,5 @@
 - hosts:
-  - zabbix_server
+  - zabbix_server_mysql_lvm
 
   tasks:
 
@@ -14,9 +14,11 @@
           - python3-requests
           - default-mysql-client
           - gnupg
+          - lvm2
+          - parted
         state: latest
         update_cache: true
-      tags: install_basic_packages
+      tags: install_basic_packages, mysql_lvm
 
     - name: Add Docker GPG apt Key
       ansible.builtin.apt_key:
@@ -43,12 +45,41 @@
         ipam_config:
           - subnet: "{{ network_docker_subnet }}"
             iprange: "{{ network_docker_iprange }}"
+      tags: docker_install
+
+    - name: Create LVG
+      community.general.lvg:
+        vg: vg-mysql
+        pvs: /dev/{{ hhd_mysql }}
+        pvresize: true
+      tags: docker_mysql, mysql_lvm
+
+    - name: Create LVOL
+      community.general.lvol:
+        vg: vg-mysql
+        lv: lv-mysql
+        size: 100%PVS
+      tags: docker_mysql, mysql_lvm
+
+    - name: Create filesystem
+      community.general.filesystem:
+        fstype: ext4
+        dev: /dev/vg-mysql/lv-mysql
+      tags: docker_mysql, mysql_lvm
 
     - name: Creates directory /var/lib/mysql
       ansible.builtin.file:
         path: /var/lib/mysql
         state: directory
-      tags: docker_mysql
+      tags: docker_mysql, mysql_lvm
+
+    - name: Mount the lv on /var/lib/mysql
+      mount:
+        path: /var/lib/mysql
+        src: /dev/vg-mysql/lv-mysql
+        fstype: ext4
+        state: mounted
+      tags: docker_mysql, mysql_lvm
 
     - name: Create docker MySQL
       community.docker.docker_container:

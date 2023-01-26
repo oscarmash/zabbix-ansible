@@ -1,6 +1,9 @@
 [zabbix_server]
 zbx-server ansible_host=172.26.0.254
 
+[zabbix_server_mysql_lvm]
+zbx-server ansible_host=172.26.0.254
+
 [zabbix_proxy]
 zbx-proxy ansible_host=172.26.0.253
 

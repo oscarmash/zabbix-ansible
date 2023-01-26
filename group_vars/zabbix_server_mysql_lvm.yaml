@@ -1,0 +1,11 @@
+network_docker_subnet: "172.23.27.0/24"
+network_docker_iprange: "172.23.27.0/24"
+mysql_root_password: "super_password_root"
+mysql_zabbix_db: "zabbix"
+mysql_zabbix_user: "zabbix"
+mysql_zabbix_user_password: "super_password_root_zabbix"
+zabbix_server_name: "Zabbix Ilba"
+zabbix_server_version: ubuntu-6.0.12
+zabbix_agent_version: ubuntu-6.2.6
+hhd_mysql: sdb
+hhd_backups: sdc
