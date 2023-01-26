@@ -7,5 +7,14 @@ mysql_zabbix_user_password: "super_password_root_zabbix"
 zabbix_server_name: "Zabbix Ilba"
 zabbix_server_version: ubuntu-6.0.12
 zabbix_agent_version: ubuntu-6.2.6
-hhd_mysql: sdb
-hhd_backups: sdc
+hdd_mysql: sdb
+hdd_backups: sdc
+hdd_fstype: xfs
+
+main_packages:
+  - python3-requests
+  - default-mysql-client
+  - gnupg
+  - lvm2
+  - parted
+  - xfsprogs

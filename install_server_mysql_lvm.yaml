@@ -10,15 +10,80 @@
 
     - name: Update apt and install basic packages
       ansible.builtin.apt:
-        name:
-          - python3-requests
-          - default-mysql-client
-          - gnupg
-          - lvm2
-          - parted
+        name: "{{ main_packages }}"
         state: latest
         update_cache: true
-      tags: install_basic_packages, mysql_lvm
+      tags: install_basic_packages, mysql_lvm, mysql_backups
+
+    # Faltaría chequear que los discos duros de mysql y backups existan
+
+    - name: Create LVG MySQL
+      community.general.lvg:
+        vg: vg-mysql
+        pvs: /dev/{{ hdd_mysql }}
+        pvresize: true
+      tags: docker_mysql, mysql_lvm
+
+    - name: Create LVOL MySQL
+      community.general.lvol:
+        vg: vg-mysql
+        lv: lv-mysql
+        size: 100%PVS
+      tags: docker_mysql, mysql_lvm
+
+    - name: Create filesystem MySQL
+      community.general.filesystem:
+        fstype: '{{ hdd_fstype }}'
+        dev: /dev/vg-mysql/lv-mysql
+      tags: docker_mysql, mysql_lvm
+
+    - name: Creates directory /var/lib/mysql
+      ansible.builtin.file:
+        path: /var/lib/mysql
+        state: directory
+      tags: docker_mysql, mysql_lvm
+
+    - name: Mount the lv on /var/lib/mysql
+      mount:
+        path: /var/lib/mysql
+        src: /dev/vg-mysql/lv-mysql
+        fstype: '{{ hdd_fstype }}'
+        state: mounted
+      tags: docker_mysql, mysql_lvm
+
+    - name: Create LVG backups
+      community.general.lvg:
+        vg: vg-backups
+        pvs: /dev/{{ hdd_backups }}
+        pvresize: true
+      tags: docker_mysql, mysql_backups
+
+    - name: Create LVOL backups
+      community.general.lvol:
+        vg: vg-backups
+        lv: lv-backups
+        size: 100%PVS
+      tags: docker_mysql, mysql_backups
+
+    - name: Create filesystem backups
+      community.general.filesystem:
+        fstype: '{{ hdd_fstype }}'
+        dev: /dev/vg-backups/lv-backups
+      tags: docker_mysql, mysql_backups
+
+    - name: Creates directory /backups
+      ansible.builtin.file:
+        path: /backups
+        state: directory
+      tags: docker_mysql, mysql_lvm
+
+    - name: Mount the lv on /backups
+      mount:
+        path: /backups
+        src: /dev/vg-backups/lv-backups
+        fstype: '{{ hdd_fstype }}'
+        state: mounted
+      tags: docker_mysql, mysql_backups
 
     - name: Add Docker GPG apt Key
       ansible.builtin.apt_key:
@@ -46,40 +111,6 @@
           - subnet: "{{ network_docker_subnet }}"
             iprange: "{{ network_docker_iprange }}"
       tags: docker_install
-
-    - name: Create LVG
-      community.general.lvg:
-        vg: vg-mysql
-        pvs: /dev/{{ hhd_mysql }}
-        pvresize: true
-      tags: docker_mysql, mysql_lvm
-
-    - name: Create LVOL
-      community.general.lvol:
-        vg: vg-mysql
-        lv: lv-mysql
-        size: 100%PVS
-      tags: docker_mysql, mysql_lvm
-
-    - name: Create filesystem
-      community.general.filesystem:
-        fstype: ext4
-        dev: /dev/vg-mysql/lv-mysql
-      tags: docker_mysql, mysql_lvm
-
-    - name: Creates directory /var/lib/mysql
-      ansible.builtin.file:
-        path: /var/lib/mysql
-        state: directory
-      tags: docker_mysql, mysql_lvm
-
-    - name: Mount the lv on /var/lib/mysql
-      mount:
-        path: /var/lib/mysql
-        src: /dev/vg-mysql/lv-mysql
-        fstype: ext4
-        state: mounted
-      tags: docker_mysql, mysql_lvm
 
     - name: Create docker MySQL
       community.docker.docker_container:
@@ -247,3 +278,5 @@
       ansible.builtin.command: "/usr/local/sbin/mysql_zbx_part.pl"
       register: result
       tags: partitioning_mysql
+
+      # faltaría chequear que este script funciona
